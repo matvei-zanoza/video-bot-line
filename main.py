@@ -20,10 +20,14 @@ from linebot.v3.messaging import (
     PushMessageRequest,
     ReplyMessageRequest,
     TextMessage,
-    VideoMessage,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from yt_dlp import YoutubeDL
+
+try:
+    from linebot.v3.messaging import VideoMessage
+except ImportError:  # pragma: no cover
+    from linebot.v3.messaging.models.video_message import VideoMessage
 
 
 load_dotenv()
@@ -51,7 +55,7 @@ if not PUBLIC_BASE_URL:
 app = FastAPI(title="videobot-LINE")
 
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
-parser = WebhookParser(LINE_CHANNEL_SECRET)
+parser = WebhookParser(LINE_CHANNEL_SECRET) if LINE_CHANNEL_SECRET else None
 
 
 URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
@@ -207,6 +211,9 @@ async def callback(
     request: Request,
     x_line_signature: str = Header(None, alias="X-Line-Signature"),
 ):
+    if parser is None:
+        raise HTTPException(status_code=500, detail="Server is not configured: LINE_CHANNEL_SECRET is missing")
+
     if not x_line_signature:
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature")
 
